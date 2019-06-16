@@ -18,7 +18,8 @@ namespace BattleBoardGame.Model.Factory
         {
             India = 1,
             Persia = 2,
-            Egito = 3
+            Egito = 3,
+            Grego = 4
         };
 
         /// <summary>
@@ -42,6 +43,10 @@ namespace BattleBoardGame.Model.Factory
             else if (Nacao.India == nacionalidade)
             {
                 factory = new FactoryExercitoIndiano();
+            }
+            else if (Nacao.Grego == nacionalidade)
+            {
+                factory = new FactoryExercitoGrego();
             }
             return factory;
         }
