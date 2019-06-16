@@ -4,14 +4,16 @@ using BattleBoardGame.Model.DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ModelBattleBoardGames.Migrations
 {
     [DbContext(typeof(ModelJogosDeGuerra))]
-    partial class ModelJogosDeGuerraModelSnapshot : ModelSnapshot
+    [Migration("20190616213135_AdicionandoOCampoImagem")]
+    partial class AdicionandoOCampoImagem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -8,5 +8,9 @@ namespace BattleBoardGame.Model
 {
     class CavaleiroEgipicia : Cavaleiro
     {
+        public CavaleiroEgipicia() : base()
+        {
+            Imagem = "http://www.dbaol.com/images/faces/1865_face.jpg";
+        }
     }
 }

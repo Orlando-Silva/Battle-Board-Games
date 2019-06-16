@@ -8,5 +8,9 @@ namespace BattleBoardGame.Model
 {
     class ArqueiroPersa : Arqueiro
     {
+        public ArqueiroPersa() : base()
+        {
+            Imagem = "https://www.apaixonadosporhistoria.com.br/img/foto/galeria_1_764876615.jpg";
+        }
     }
 }
