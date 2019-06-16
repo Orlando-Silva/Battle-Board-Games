@@ -18,6 +18,10 @@
 }
 <p>Quantidade de Batalhas Total:</p><p id="qtdBatalhas"></p>
 
-@section Scripts{ 
-<script src="~/js/batalhas.js"></script>
-}
+    <environment include="Development">
+        <script src="~/js/batalhas.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/js/batalhas.min.js"></script>
+    </environment>                                
+
