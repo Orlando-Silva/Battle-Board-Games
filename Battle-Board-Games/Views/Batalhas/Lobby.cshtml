@@ -3,14 +3,15 @@
     ViewData["Title"] = "Lobby";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
+@using static BattleBoardGame.Model.Factory.AbstractFactoryExercito;
 
 <h2>Lobby</h2>
 
 
 <div class="container">
     <div class="row">
-        <div class="col-md-4">
-            <p style="text-align:center">
+        <div class="col-md-5">
+            <p style="text-align:right">
                 @if (!@String.IsNullOrEmpty(Model.ExercitoBranco.Usuario.PrimeiroNome))
                 {
                     @Model.ExercitoBranco.Usuario.PrimeiroNome
@@ -19,15 +20,18 @@
                 {
                     @Model.ExercitoBranco.Usuario.Username
                 }
+                <select id="NacaoExercitoBranco"style="margin-left:20px;" class="btn btn-default dropdown-toggle" asp-items="Html.GetEnumSelectList<Nacao>()"></select>
             </p>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-2">
             <p style="text-align:center">VS</p>
         </div>
-        <div class="col-md-4">
-            <p style="text-align:center">
+        <div class="col-md-5">
+            <p style="text-align:left;">
                 @if (Model.ExercitoPreto != null)
                 {
+                    <select id="NacaoExercitoPreto" style="margin-right:20px;" class="btn btn-default dropdown-toggle" asp-items="Html.GetEnumSelectList<Nacao>()"></select>
+
                     @if (!@String.IsNullOrEmpty(Model.ExercitoPreto.Usuario.PrimeiroNome))
                     {
                         @Model.ExercitoPreto.Usuario.PrimeiroNome
@@ -39,7 +43,7 @@
                 }
                 else
                 {
-                <p>Esperando o próximo jogador...</p>
+<p>Esperando o próximo jogador...</p>
             }
                 </p>
             </div>
@@ -47,7 +51,9 @@
         <div class="row">
             <div class="col-md-12 text-center">
                 <button id="singlebutton" name="singlebutton" class="btn btn-primary"
-                        onclick="iniciarBatalha('@Model.Id')">Iniciar Jogo</button>
+                        onclick="iniciarBatalha('@Model.Id');">
+                    Iniciar Jogo
+                </button>
             </div>
         </div>
 

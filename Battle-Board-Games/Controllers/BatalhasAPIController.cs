@@ -1,6 +1,7 @@
 ﻿using BattleBoardGame.Model;
 using BattleBoardGame.Model.DAL;
 using BattleBoardGames.Areas.Identity.Data;
+using BattleBoardGames.DTO;
 using BattleBoardGames.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -113,14 +114,18 @@ namespace Battle_Board_Games.Controllers
         }
 
         [Route("IniciarBatalha/{id}")]
+        [HttpPost]
         [Authorize]
-        public async Task<IActionResult> IniciarBatalha(int id)
+        public async Task<IActionResult> IniciarBatalha(int id, IniciarBatalhaRequest iniciarBatalhaRequest)
         {
 
+            if (NacoesIguais(iniciarBatalhaRequest))
+            {
+                return BadRequest("Os jogadores devem escolher nações diferentes!");
+            }
 
             var usuario = _usuarioService.ObterUsuarioEmail(this.User);
-
-
+            
             //Get batalha
             var batalha = _context.Batalhas
                 .Include(b => b.ExercitoPreto)
@@ -148,6 +153,7 @@ namespace Battle_Board_Games.Controllers
             {
                 if (batalha.Estado == Batalha.EstadoBatalhaEnum.NaoIniciado)
                 {
+                    AtualizarNacoes(iniciarBatalhaRequest, batalha);
                     batalha.Tabuleiro.IniciarJogo(batalha.ExercitoBranco, batalha.ExercitoPreto);
                     Random r = new Random();
                     batalha.Turno = r.Next(100) < 50
@@ -155,12 +161,24 @@ namespace Battle_Board_Games.Controllers
                         batalha.ExercitoBranco;
                     batalha.Estado = Batalha.EstadoBatalhaEnum.Iniciado;
                 }
-            }catch(ArgumentException arg)
+            }
+            catch (ArgumentException arg)
             {
                 BadRequest("Não foi escolhido uma nação.");
             }
             _context.SaveChanges();
             return Ok(batalha);
+        }
+
+        private static void AtualizarNacoes(IniciarBatalhaRequest iniciarBatalhaRequest, Batalha batalha)
+        {
+            batalha.ExercitoBranco.Nacao = iniciarBatalhaRequest.NacaoExercitoBranco;
+            batalha.ExercitoPreto.Nacao = iniciarBatalhaRequest.NacaoExercitoPreto;
+        }
+
+        private static bool NacoesIguais(IniciarBatalhaRequest iniciarBatalhaRequest)
+        {
+            return iniciarBatalhaRequest.NacaoExercitoBranco == iniciarBatalhaRequest.NacaoExercitoPreto;
         }
 
         [Authorize]
@@ -294,7 +312,7 @@ namespace Battle_Board_Games.Controllers
             }        
             Exercito e = new Exercito();
             e.Usuario = usuario;
-            e.Nacao = Nacao.Egito;
+            
             if(batalha.ExercitoBrancoId == null)
             {
                 batalha.ExercitoBranco = e;

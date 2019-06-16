@@ -39,7 +39,7 @@
                     <li><a asp-area="" asp-controller="Home" asp-action="About">Sobre</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="Contact">Contatos</a></li>
                 </ul>
-               <partial name="_LoginPartial"/>
+                <partial name="_LoginPartial" />
             </div>
         </div>
     </nav>
@@ -74,6 +74,8 @@
         </script>
         <script src="~/js/site.min.js" asp-append-version="true"></script>
     </environment>
+
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>
