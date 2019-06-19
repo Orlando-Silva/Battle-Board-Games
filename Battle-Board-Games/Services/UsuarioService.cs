@@ -3,14 +3,15 @@ using BattleBoardGame.Model.DAL;
 using BattleBoardGames.Areas.Identity.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace BattleBoardGames.Services
 {
+
+    /*
+        Este serviço não foi migrado porque causaria dependência circular entre a camada de serviços e a camada de apresentação.
+    */
     public class UsuarioService
     {
         ModelJogosDeGuerra _context;
@@ -18,8 +19,8 @@ namespace BattleBoardGames.Services
 
         public UsuarioService(ModelJogosDeGuerra context, UserManager<BattleBoardGamesUser> userManager)
         {
-            this._context = context;
-            this._userManager = userManager;
+            _context = context;
+            _userManager = userManager;
         }
 
         [Authorize]

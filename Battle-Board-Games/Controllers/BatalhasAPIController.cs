@@ -6,10 +6,10 @@ using BattleBoardGames.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System;
+using Service_Battle_Board_Games.Exceptions;
+using Service_Battle_Board_Games.Interfaces;
 using System.Collections.Generic;
-using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using static BattleBoardGame.Model.Factory.AbstractFactoryExercito;
 
@@ -19,273 +19,146 @@ namespace Battle_Board_Games.Controllers
     [ApiController]
     public class BatalhasAPIController : ControllerBase
     {
-        private readonly ModelJogosDeGuerra _context;
-
-
-        UserManager<BattleBoardGamesUser> _userManager;
+        private readonly IBatalhaService _batalhaService;
 
         UsuarioService _usuarioService;
-        public BatalhasAPIController
-            (ModelJogosDeGuerra context, UserManager<BattleBoardGamesUser> userManager)
+        UserManager<BattleBoardGamesUser> _userManager;
+
+        public BatalhasAPIController(IBatalhaService batalhaService, UserManager<BattleBoardGamesUser> userManager, ModelJogosDeGuerra context)
         {
-            _context = context;
+            _batalhaService = batalhaService;
             _userManager = userManager;
-            _usuarioService = new UsuarioService(_context, _userManager);
+            _usuarioService = new UsuarioService(context, _userManager);
         }
 
-        [HttpGet]
-        [Route("QtdBatalhas")]
+        [HttpGet("QtdBatalhas")]
         public async Task<IActionResult> ObterQuantidadeBatalhas()
-        {
-            return Ok(await _context.Batalhas.CountAsync());
-        }
+            => Ok(await _batalhaService.BuscarQuantidadeAsync());
 
-        // GET: api/BatalhasAPI
-        [Authorize]
         [HttpGet]
-        public IEnumerable<Batalha> GetBatalhas(bool Finalizada = false)
-        {
-            IEnumerable<Batalha> batalhas;
-            if (Finalizada)
-            {
-                batalhas = _context.Batalhas.Where(b => b.Vencedor != null).ToList();
-            }
-            else
-            {
-                batalhas = _context.Batalhas.ToList();
-            }
-            return batalhas;
-        }
+        [Authorize]
+        public async Task<IEnumerable<Batalha>> GetBatalhas(bool Finalizada = false)
+            => await _batalhaService.BuscarAsync(Finalizada);
 
+        [HttpGet("QtdBatalhasJogador")]
         [Authorize]
-        [HttpGet]
-        [Route("QtdBatalhasJogador")]
         public async Task<IActionResult> GetBatalhasJogador()
         {
-            var batalhas = _context.Batalhas
-                .Where(b => (b.ExercitoBranco != null &&
-                            b.ExercitoBranco.UsuarioId ==
-                            User.Identity.Name)
-                            ||
-                            (b.ExercitoPreto != null &&
-                            b.ExercitoPreto.UsuarioId ==
-                            User.Identity.Name))
-                            .Count();
-            return Ok(batalhas);
-                            
+            var usuario = _usuarioService.ObterUsuarioEmail(User);
+            return Ok(await _batalhaService.ContarPorJogador(usuario.Id));
         }
-
+            
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> EscolherNacao(Nacao nacao, int ExercitoId)
-        {
-            var exercito = _context.Exercitos.Where(e => e.Id == ExercitoId).FirstOrDefault();
-            exercito.Nacao = nacao;
-            await _context.SaveChangesAsync();
-            return Ok(exercito);
-        }
+        public async Task<IActionResult> EscolherNacao(Nacao nacao, int exercitoId)
+            => Ok(await _batalhaService.EscolherNacaoAsync(nacao, exercitoId));
 
-        // GET: api/BatalhasAPI?id=5
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<IActionResult> GetBatalha([FromRoute] int id)
+        public async Task<IActionResult> GetBatalha(int id)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
+                var batalha = await _batalhaService.BuscarAsync(id);
+
+                if (batalha is null)
+                    return NotFound();
+
+                return Ok(batalha);
             }
-
-            var batalha =  await _context.Batalhas.Include(b => b.ExercitoPreto)
-                .Include(b => b.ExercitoPreto.Usuario)
-                .Include(b => b.ExercitoBranco)
-                .Include(b => b.ExercitoBranco.Usuario)
-                .Include(b => b.Tabuleiro)
-                .Include(b => b.Tabuleiro.ElementosDoExercito)
-                .Include(b => b.Turno)
-                .Include(b => b.Turno.Usuario).Where(b => b.Id == id).FirstOrDefaultAsync();
-
-            if (batalha == null)
+            catch
             {
-                return NotFound();
+                return StatusCode((int)HttpStatusCode.InternalServerError);
             }
-
-            return Ok(batalha);
         }
 
-        [Route("IniciarBatalha/{id}")]
-        [HttpPost]
+        [HttpPost("IniciarBatalha/{id}")]
         [Authorize]
         public async Task<IActionResult> IniciarBatalha(int id, IniciarBatalhaRequest iniciarBatalhaRequest)
         {
-
-            if (NacoesIguais(iniciarBatalhaRequest))
-            {
-                return BadRequest("Os jogadores devem escolher nações diferentes!");
-            }
-
-            var usuario = _usuarioService.ObterUsuarioEmail(this.User);
-            
-            //Get batalha
-            var batalha = _context.Batalhas
-                .Include(b => b.ExercitoPreto)
-                .Include(b => b.ExercitoBranco)
-                .Include(b => b.Tabuleiro)
-                .Include(b => b.Turno)
-                .Include(b => b.Turno.Usuario)
-                .Where(b =>
-                (b.ExercitoBranco.Usuario.Id == usuario.Id
-                || b.ExercitoPreto.Usuario.Id == usuario.Id)
-                && (b.ExercitoBranco != null && b.ExercitoPreto != null)
-                && b.Id == id).FirstOrDefault();
-            if (batalha == null)
-            {
-                return NotFound();
-            }
-
-            if (batalha.Tabuleiro == null)
-            {
-                batalha.Tabuleiro = new Tabuleiro();
-                batalha.Tabuleiro.Altura = 8;
-                batalha.Tabuleiro.Largura = 8;
-            }
             try
             {
-                if (batalha.Estado == Batalha.EstadoBatalhaEnum.NaoIniciado)
-                {
-                    AtualizarNacoes(iniciarBatalhaRequest, batalha);
-                    batalha.Tabuleiro.IniciarJogo(batalha.ExercitoBranco, batalha.ExercitoPreto);
-                    Random r = new Random();
-                    batalha.Turno = r.Next(100) < 50
-                        ? batalha.ExercitoPreto :
-                        batalha.ExercitoBranco;
-                    batalha.Estado = Batalha.EstadoBatalhaEnum.Iniciado;
-                }
-            }
-            catch (ArgumentException arg)
-            {
-                BadRequest("Não foi escolhido uma nação.");
-            }
-            _context.SaveChanges();
-            return Ok(batalha);
-        }
+                var usuario = _usuarioService.ObterUsuarioEmail(User);
 
-        private static void AtualizarNacoes(IniciarBatalhaRequest iniciarBatalhaRequest, Batalha batalha)
-        {
-            batalha.ExercitoBranco.Nacao = iniciarBatalhaRequest.NacaoExercitoBranco;
-            batalha.ExercitoPreto.Nacao = iniciarBatalhaRequest.NacaoExercitoPreto;
-        }
+                var batalha = await _batalhaService.IniciarAsync(
+                    new IniciarBatalhaParams
+                    {
+                        Id = id,
+                        Jogador = usuario.Id,
+                        NacaoExercitoBranco = iniciarBatalhaRequest.NacaoExercitoBranco,
+                        NacaoExercitoPreto = iniciarBatalhaRequest.NacaoExercitoPreto
 
-        private static bool NacoesIguais(IniciarBatalhaRequest iniciarBatalhaRequest)
-        {
-            return iniciarBatalhaRequest.NacaoExercitoBranco == iniciarBatalhaRequest.NacaoExercitoPreto;
-        }
+                    });
 
-        [Authorize]
-        [Route("Jogar")]
-        [HttpPost]
-        public async Task<IActionResult> Jogar([FromBody]Movimento movimento)
-        {
-            movimento.Elemento =
-                _context.ElementosDoExercitos
-                .Include(el => el.Exercito)
-                    .FirstOrDefault(el => el.Id == movimento.ElementoId);
-            if (movimento.Elemento == null)
-            {
-                return NotFound();
-            }
-
-            movimento.Batalha =
-                _context.Batalhas
-                .Include(b => b.Tabuleiro)
-                .Include(b => b.Tabuleiro.ElementosDoExercito)
-                .Include(b => b.ExercitoBranco)
-                .Include(b => b.ExercitoPreto)
-                .Include(b => b.Turno)
-                .Include(b => b.Vencedor)
-                .Include(b => b.ExercitoBranco.Usuario)
-                .Include(b => b.ExercitoPreto.Usuario)
-                .FirstOrDefault(
-                    m=> m.Id == movimento.BatalhaId);
-
-            var usuario = this._usuarioService.ObterUsuarioEmail(this.User);
-
-
-            if (usuario.Id != movimento.AutorId)
-            {
-                return Forbid("O usuário autenticado não é o autor da jogada");
-            }
-            
-            var batalha = movimento.Batalha;
-            if (movimento.AutorId != movimento.Elemento.Exercito.UsuarioId)
-            {
-                //Usuário não é o dono do exercito.
-                return Forbid("O jogador não é dono do exercito");
-            }
-            if (movimento.AutorId == batalha.Turno.UsuarioId)
-            {
-                if (!batalha.Jogar(movimento))
-                {
-                    return BadRequest("A jogada é invalida");
-                }
-                batalha.Turno = null;
-                batalha.TurnoId = batalha.TurnoId == batalha.ExercitoBrancoId ?
-                    batalha.ExercitoPretoId : batalha.ExercitoBrancoId;
-                await _context.SaveChangesAsync();
                 return Ok(batalha);
             }
-            return BadRequest("Operação não realizada");
-            
+            catch (BatalhaServiceExeception exception)
+            {
+                return BadRequest(exception.Message);
+            }
+            catch
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
+
         }
 
-        // PUT: api/BatalhasAPI/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutBatalha([FromRoute] int id, [FromBody] Batalha batalha)
+        [HttpPost("Jogar")]
+        [Authorize]
+        public async Task<IActionResult> Jogar([FromBody]Movimento movimento)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            if (id != batalha.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(batalha).State = EntityState.Modified;
-
             try
             {
-                await _context.SaveChangesAsync();
+                var usuario = _usuarioService.ObterUsuarioEmail(User);
+                return Ok(await _batalhaService.JogarAsync(movimento, usuario.Id));
             }
-            catch (DbUpdateConcurrencyException)
+            catch (BatalhaServiceExeception exception)
             {
-                if (!BatalhaExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return BadRequest(exception.Message);
             }
-
-            return NoContent();
+            catch
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
         }
 
-        // POST: api/BatalhasAPI
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<IActionResult> PutBatalha([FromRoute] int id, [FromBody] Batalha batalha)
+        {
+            try
+            {
+                return Ok(await _batalhaService.AtualizarAsync(id, batalha));
+            }
+            catch (BatalhaServiceExeception exception)
+            {
+                return BadRequest(exception.Message);
+            }
+            catch
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
+        }
+
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> PostBatalha([FromBody] Batalha batalha)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
+                batalha = await _batalhaService.EnviarAsync(batalha);
+                return CreatedAtAction
+                    (
+                        actionName: nameof(GetBatalha),
+                        routeValues: new { id = batalha.Id },
+                        value: batalha
+                    );
             }
-
-            _context.Batalhas.Add(batalha);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetBatalha", new { id = batalha.Id }, batalha);
+            catch
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
         }
 
         [HttpGet]
@@ -293,64 +166,33 @@ namespace Battle_Board_Games.Controllers
         [Authorize]
         public async Task<IActionResult> CriarBatalha()
         {
-            var usuario = _usuarioService.ObterUsuarioEmail(this.User);
-
-            var batalha = _context.Batalhas.Include(b => b.ExercitoBranco)
-                .Include(b => b.ExercitoPreto)
-                .FirstOrDefault(b =>
-            (b.ExercitoBrancoId == null 
-            || b.ExercitoPretoId== null) &&
-            (b.ExercitoBranco.UsuarioId != usuario.Id
-            && b.ExercitoPreto.UsuarioId != usuario.Id));
-
-
-
-            if(batalha == null)
+            try
             {
-                batalha = new Batalha();
-                _context.Add(batalha);
-            }        
-            Exercito e = new Exercito();
-            e.Usuario = usuario;
-            
-            if(batalha.ExercitoBrancoId == null)
-            {
-                batalha.ExercitoBranco = e;
+                var usuario = _usuarioService.ObterUsuarioEmail(User);
+                var batalha = await _batalhaService.CriarAsync(usuario);
+                return Ok(batalha);
             }
-            else
+            catch
             {
-                batalha.ExercitoPreto = e;
+                return StatusCode((int)HttpStatusCode.InternalServerError);
             }
-            _context.SaveChanges();
-            return Ok(batalha);
         }
 
-
-
-        // DELETE: api/BatalhasAPI/5
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteBatalha([FromRoute] int id)
+        public async Task<IActionResult> DeleteBatalha(int id)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
+                return Ok(await _batalhaService.DeletarAsync(id));
             }
-
-            var batalha = await _context.Batalhas.FindAsync(id);
-            if (batalha == null)
+            catch (BatalhaServiceExeception exception)
             {
-                return NotFound();
+                return BadRequest(exception.Message);
             }
-
-            _context.Batalhas.Remove(batalha);
-            await _context.SaveChangesAsync();
-
-            return Ok(batalha);
-        }
-
-        private bool BatalhaExists(int id)
-        {
-            return _context.Batalhas.Any(e => e.Id == id);
+            catch
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
         }
     }
 }

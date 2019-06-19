@@ -12,6 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI;
 using Microsoft.EntityFrameworkCore;
+using Service_Battle_Board_Games;
+using Service_Battle_Board_Games.Interfaces;
 
 namespace BattleBoardGame
 {
@@ -34,12 +36,16 @@ namespace BattleBoardGame
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
-            services.AddEntityFrameworkSqlServer().AddDbContext<Model.DAL.ModelJogosDeGuerra>(
-                options =>
-                {
-                options.UseSqlServer(Configuration.GetConnectionString("ModelJogosDeGuerra"));
-                }
+            services.AddEntityFrameworkSqlServer().AddDbContext<Model.DAL.ModelJogosDeGuerra>
+                (
+                    options =>
+                    {
+                        options.UseSqlServer(Configuration.GetConnectionString("ModelJogosDeGuerra"));
+                    }
                 );
+
+            // Fornecendo a implementação concreta das Interfaces da camada de serviços para injeção de dependência. Aumentando a facilidade para a utilização de Mock's nos testes unitários
+            services.AddScoped<IBatalhaService, BatalhaService>();
 
             services.Configure<IdentityOptions>(
             options =>

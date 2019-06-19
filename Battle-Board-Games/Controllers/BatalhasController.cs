@@ -1,16 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
-using BattleBoardGame.Model;
-using BattleBoardGame.Model.DAL;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using static BattleBoardGame.Model.Factory.AbstractFactoryExercito;
+using Service_Battle_Board_Games.Interfaces;
 
 namespace Battle_Board_Games.Controllers
 {
@@ -19,28 +10,18 @@ namespace Battle_Board_Games.Controllers
     public class BatalhasController : Controller
     {
 
-        private readonly ModelJogosDeGuerra _context;
-        public BatalhasController(ModelJogosDeGuerra context)
+        private readonly IBatalhaService _batalhaService;
+
+        public BatalhasController(IBatalhaService batalhaService)
         {
-            this._context = context;
+            _batalhaService = batalhaService;
         }
 
         [Route("Lobby/{batalhaId}")]
         [HttpGet()]
         public ActionResult Lobby(int batalhaId)
         {
-            var batalha = _context.Batalhas
-                .Where(x => x.Id.Equals(batalhaId))
-                .Include(b => b.ExercitoBranco)
-                .Include(b => b.ExercitoBranco.Usuario)
-                .Include(b => b.ExercitoPreto)
-                .Include(b => b.ExercitoPreto.Usuario)
-                .Include(b => b.Tabuleiro)
-                .Include(b => b.Turno)
-                .Include(b => b.Turno.Usuario)
-                .Include(b => b.Vencedor)
-                .Include(b => b.Vencedor.Usuario)
-                .FirstOrDefault();
+            var batalha = _batalhaService.BuscarLobby(batalhaId).Result;
             ViewBag.Id = batalha.Id;
             return View(batalha);
         }
@@ -49,23 +30,7 @@ namespace Battle_Board_Games.Controllers
         [HttpGet()]
         public ActionResult Tabuleiro(int batalhaId)
         {
-            var batalha = _context.Batalhas
-                .Where(x => x.Id.Equals(batalhaId))
-                .Include(b => b.ExercitoBranco)
-                .Include(b => b.ExercitoBranco.Elementos)
-                .Include(b => b.ExercitoBranco.ElementosVivos)
-                .Include(b => b.ExercitoBranco.Usuario)
-                .Include(b => b.ExercitoPreto)
-                .Include(b => b.ExercitoPreto.Elementos)
-                .Include(b => b.ExercitoPreto.ElementosVivos)
-                .Include(b => b.ExercitoPreto.Usuario)
-                .Include(b => b.Tabuleiro)
-                .Include(b => b.Turno)
-                .Include(b => b.Turno.Usuario)
-                .Include(b => b.Vencedor)
-                .Include(b => b.Vencedor.Usuario)
-                .FirstOrDefault();
-
+            var batalha = _batalhaService.BuscarTabuleiroAsync(batalhaId).Result;
             ViewBag.Id = batalha.Id;
             return View(batalha);
         }
